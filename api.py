@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import openai
-import os
+from openai import OpenAI
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
@@ -14,22 +15,15 @@ class ClinicalNote(BaseModel):
 
 @app.post("/predict")
 async def predict_icd(note: ClinicalNote):
-    delimiter = "####"
-
-    system_message = f"""
-    Act as a professional medical coder.
-    Provide all possible ICD-10 codes based on the clinical notes.
-    """
-
-    messages = [
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": f"{delimiter}{note.text}{delimiter}"}
-    ]
-
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=messages,
-        max_tokens=500
+        messages=[
+            {"role": "system", "content": "Act as a professional medical coder. Provide all possible ICD-10 codes."},
+            {"role": "user", "content": note.text}
+        ],
+        max_tokens=300
     )
 
-    return {"result": response.choices[0].message["content"]}
+    return {
+        "result": response.choices[0].message.content
+    }
