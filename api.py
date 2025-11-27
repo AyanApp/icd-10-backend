@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from openai import OpenAI
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
@@ -15,15 +15,25 @@ class ClinicalNote(BaseModel):
 
 @app.post("/predict")
 async def predict_icd(note: ClinicalNote):
+    system_message = """
+    You are a professional medical coder.
+    Extract ALL possible ICD-10 codes from the clinical note.
+    Output STRICTLY in JSON array format:
+    [
+      {"code": "ICD10_CODE", "description": "Meaning"}
+    ]
+    No extra text. No explanation. JSON only.
+    """
+
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Act as a professional medical coder. Provide all possible ICD-10 codes."},
+            {"role": "system", "content": system_message},
             {"role": "user", "content": note.text}
         ],
-        max_tokens=300
+        max_tokens=500,
+        temperature=0
     )
 
-    return {
-        "result": response.choices[0].message.content
-    }
+    result = response.choices[0].message["content"]
+    return {"result": result}
