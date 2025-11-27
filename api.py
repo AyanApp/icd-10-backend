@@ -35,5 +35,5 @@ async def predict_icd(note: ClinicalNote):
         temperature=0
     )
 
-    result = response.choices[0].message["content"]
+    result = response.choices[0].message.content
     return {"result": result}
