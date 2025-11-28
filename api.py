@@ -2,12 +2,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import os
+import json
+import re
 
 app = FastAPI()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ------------------------
-# CORS (for Flutter / web)
+# CORS (for Flutter / Web)
 # ------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -22,16 +24,26 @@ app.add_middleware(
 # ------------------------
 async def ask_openai(prompt: str):
     """
-    Calls OpenAI chat completions and returns the combined content from all choices.
+    Calls OpenAI chat completions and returns a clean JSON object.
     """
     response = client.chat.completions.create(
-        model="gpt-4o-mini",   # cheapest accurate model
+        model="gpt-4o-mini",  # cheapest accurate model
         messages=[{"role": "user", "content": prompt}],
         max_tokens=300
     )
 
-    # New SDK: use .content, not subscript
-    return " ".join([choice.message.content for choice in response.choices])
+    # Combine all choices
+    text = " ".join([choice.message.content for choice in response.choices])
+
+    # Remove Markdown code fences (```json or ```)
+    text = re.sub(r"```json|```", "", text).strip()
+
+    # Try to parse JSON
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # If parsing fails, return raw text
+        return {"raw": text}
 
 
 # ------------------------
@@ -56,8 +68,8 @@ async def level1(request: Request):
     }}
     """
 
-    answer = await ask_openai(prompt)
-    return {"result": answer}
+    result = await ask_openai(prompt)
+    return {"result": result}
 
 
 # ------------------------
@@ -80,8 +92,8 @@ async def level2(request: Request):
     Output JSON with best match first.
     """
 
-    answer = await ask_openai(prompt)
-    return {"result": answer}
+    result = await ask_openai(prompt)
+    return {"result": result}
 
 
 # ------------------------
@@ -104,8 +116,8 @@ async def level3(request: Request):
     Output JSON.
     """
 
-    answer = await ask_openai(prompt)
-    return {"result": answer}
+    result = await ask_openai(prompt)
+    return {"result": result}
 
 
 # ------------------------
@@ -131,5 +143,5 @@ async def predict_icd(request: Request):
     }}
     """
 
-    answer = await ask_openai(prompt)
-    return {"result": answer}
+    result = await ask_openai(prompt)
+    return {"result": result}
